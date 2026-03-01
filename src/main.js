@@ -4749,12 +4749,30 @@ function buildColorFilterOverlay() {
       // Do NOT add totalWrong again to avoid double counting
       displayPainted = totalPainted;
       displayRequired = totalRequired;
-      overallProgress = displayRequired > 0 ? Math.round((displayPainted / displayRequired) * 100) : 0;
+      if (displayRequired > 0) {
+        if (displayPainted === displayRequired) {
+          overallProgress = 100;
+        } else {
+          const percentage = (displayPainted / displayRequired) * 100;
+          overallProgress = Math.min(Math.round(percentage * 100) / 100, 99.99);
+        }
+      } else {
+        overallProgress = 0;
+      }
     } else {
       // Standard calculation (exclude wrong colors)
       displayPainted = totalPainted;
       displayRequired = totalRequired;
-      overallProgress = displayRequired > 0 ? Math.round((displayPainted / displayRequired) * 100) : 0;
+      if (displayRequired > 0) {
+        if (displayPainted === displayRequired) {
+          overallProgress = 100;
+        } else {
+          const percentage = (displayPainted / displayRequired) * 100;
+          overallProgress = Math.min(Math.round(percentage * 100) / 100, 99.99);
+        }
+      } else {
+        overallProgress = 0;
+      }
     }
     
     // Inject compact modern styles for Color Filter UI (once)
