@@ -9498,7 +9498,17 @@ function updateMiniTracker() {
     }
   }
   
-  const progressPercentage = totalRequired > 0 ? Math.round((totalPainted / totalRequired) * 100) : 0;
+  let progressPercentage;
+  if (totalRequired > 0) {
+    if (totalPainted === totalRequired) {
+      progressPercentage = 100;
+    } else {
+      const percentage = (totalPainted / totalRequired) * 100;
+      progressPercentage = Math.min(Math.round(percentage * 100) / 100, 99.99);
+    }
+  } else {
+    progressPercentage = 0;
+  }
   const remaining = totalRequired - totalPainted;
   
   // Create or update tracker
