@@ -7,8 +7,8 @@
 // @license      MPL-2.0
 // @homepageURL  https://github.com/cubitt0/Wplace-SkirkMarble-art-extractor
 // @icon         https://raw.githubusercontent.com/cubitt0/Wplace-SkirkMarble-art-extractor/4e1302e111b2fa4d2c3083d894cdc7d3c14b1da9/dist/assets/Favicon.png
-// @updateURL    https://raw.githubusercontent.com/a1jzbx8gowpqsk/a3e7d896x92klf/main/dist/SkirkMarble.user.js
-// @downloadURL  https://raw.githubusercontent.com/a1jzbx8gowpqsk/a3e7d896x92klf/main/dist/SkirkMarble.user.js
+// @updateURL    https://raw.githubusercontent.com/a1jzbx8gowpqsk/a3fy02jhq98obi/main/dist/SkirkMarble.user.js
+// @downloadURL  https://raw.githubusercontent.com/a1jzbx8gowpqsk/a3fy02jhq98obi/main/dist/SkirkMarble.user.js
 // @run-at       document-start
 // @match        *://*.wplace.live/*
 // @grant        GM_getResourceText
