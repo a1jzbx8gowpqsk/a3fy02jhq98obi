@@ -176,7 +176,7 @@ export default class ApiManager {
           try {
             const endpointFull = data['endpoint'] || '';
             const parts = endpointFull.split('?')[0].split('/');
-            const idx = Math.max(parts.lastIndexOf('tiles'), parts.lastIndexOf('tile'));
+            const idx = Math.max(parts.lastIndexOf('tile'), parts.lastIndexOf('tiles'));
             if (idx > 0) {
               const base = parts.slice(0, idx + 1).join('/');
               this.tileServerBase = base; // e.g., https://wplace.live/api/files/s0/tiles
