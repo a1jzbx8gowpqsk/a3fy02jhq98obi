@@ -9501,14 +9501,15 @@ function updateMiniTracker() {
   let progressPercentage;
   if (totalRequired > 0) {
     if (totalPainted === totalRequired) {
-      progressPercentage = 100;
+      progressPercentage = '100.00';
     } else {
       const percentage = (totalPainted / totalRequired) * 100;
-      progressPercentage = Math.min(Math.round(percentage * 100) / 100, 99.99);
+      progressPercentage = Math.min(percentage, 99.99).toFixed(2);
     }
   } else {
-    progressPercentage = 0;
+    progressPercentage = '0.00';
   }
+  
   const remaining = totalRequired - totalPainted;
   
   // Create or update tracker
