@@ -72,55 +72,9 @@ export default class TemplateManager {
     this.loadWrongColorSettings();
     
     // Template
-    this.canvasTemplate = null; // Our canvas
-    this.canvasTemplateZoomed = null; // The template when zoomed out
-    this.canvasTemplateID = 'bm-canvas'; // Our canvas ID
-    this.canvasMainID = 'div#map canvas.maplibregl-canvas'; // The selector for the main canvas
-    this.template = null; // The template image.
-    this.templateState = ''; // The state of the template ('blob', 'proccessing', 'template', etc.)
     this.templatesArray = []; // All Template instnaces currently loaded (Template)
     this.templatesJSON = null; // All templates currently loaded (JSON)
     this.templatesShouldBeDrawn = true; // Should ALL templates be drawn to the canvas?
-  }
-
-  /** Retrieves the pixel art canvas.
-   * If the canvas has been updated/replaced, it retrieves the new one.
-   * @param {string} selector - The CSS selector to use to find the canvas.
-   * @returns {HTMLCanvasElement|null} The canvas as an HTML Canvas Element, or null if the canvas does not exist
-   * @since 0.58.3
-   * @deprecated Not in use since 0.63.25
-   */
-  /* @__PURE__ */getCanvas() {
-
-    // If the stored canvas is "fresh", return the stored canvas
-    if (document.body.contains(this.canvasTemplate)) {return this.canvasTemplate;}
-    // Else, the stored canvas is "stale", get the canvas again
-
-    // Attempt to find and destroy the "stale" canvas
-    document.getElementById(this.canvasTemplateID)?.remove(); 
-
-    const canvasMain = document.querySelector(this.canvasMainID);
-
-    const canvasTemplateNew = document.createElement('canvas');
-    canvasTemplateNew.id = this.canvasTemplateID;
-    canvasTemplateNew.className = 'maplibregl-canvas';
-    canvasTemplateNew.style.position = 'absolute';
-    canvasTemplateNew.style.top = '0';
-    canvasTemplateNew.style.left = '0';
-    canvasTemplateNew.style.height = `${canvasMain?.clientHeight * (window.devicePixelRatio || 1)}px`;
-    canvasTemplateNew.style.width = `${canvasMain?.clientWidth * (window.devicePixelRatio || 1)}px`;
-    canvasTemplateNew.height = canvasMain?.clientHeight * (window.devicePixelRatio || 1);
-    canvasTemplateNew.width = canvasMain?.clientWidth * (window.devicePixelRatio || 1);
-    canvasTemplateNew.style.zIndex = '8999';
-    canvasTemplateNew.style.pointerEvents = 'none';
-    canvasMain?.parentElement?.appendChild(canvasTemplateNew); // Append the newCanvas as a child of the parent of the main canvas
-    this.canvasTemplate = canvasTemplateNew; // Store the new canvas
-
-    window.addEventListener('move', this.onMove);
-    window.addEventListener('zoom', this.onZoom);
-    window.addEventListener('resize', this.onResize);
-
-    return this.canvasTemplate; // Return the new canvas
   }
 
   /** Creates the JSON object to store templates in
@@ -180,34 +134,38 @@ export default class TemplateManager {
 
     this.overlay.handleDisplayStatus(`Creating template at ${coords.join(', ')}...`);
 
-    // Create a temporary template instance to get pixel count for duplicate detection
-    const tempTemplate = new Template({
+    // Determine sortID first (for duplicates, reuse existing sortID)
+    const existingSortIDs = Object.keys(this.templatesJSON.templates).map(key => parseInt(key.split(' ')[0]));
+    const nextSortID = existingSortIDs.length > 0 ? Math.max(...existingSortIDs) + 1 : 0;
+
+    // Creates the template instance ONCE
+    const template = new Template({
       displayName: name,
-      sortID: 0, // Temporary sortID
+      sortID: nextSortID,
       authorID: numberToEncoded(this.userID || 0, this.encodingBase),
       file: blob,
       coords: coords
     });
-    const { templateTiles: tempTiles, templateTilesBuffers: tempBuffers } = await tempTemplate.createTemplateTiles(this.tileSize);
-    tempTemplate.chunked = tempTiles;
+    
+    // Process template tiles (this is the heavy operation - do it only once!)
+    const { templateTiles, templateTilesBuffers } = await template.createTemplateTiles(this.tileSize);
+    template.chunked = templateTiles;
 
-    // Check for duplicate templates (same name and pixel count)
-    // DEBUG: Log template creation details
-    debugLog(` Creating template: "${name}" with ${tempTemplate.pixelCount} pixels`);
-    debugLog(` Existing templates:`, Object.keys(this.templatesJSON.templates));
+    // Check for duplicate templates AFTER processing (using actual pixel count)
+    debugLog(` Creating template: "${name}" with ${template.pixelCount} pixels`);
     
-    // TEMPORARY: Allow disabling duplicate detection for debugging
-    const ENABLE_DUPLICATE_DETECTION = true; // Set to false to disable
+    const ENABLE_DUPLICATE_DETECTION = true;
+    const duplicateKey = ENABLE_DUPLICATE_DETECTION ? this.findDuplicateTemplate(name, template.pixelCount) : null;
     
-    const duplicateKey = ENABLE_DUPLICATE_DETECTION ? this.findDuplicateTemplate(name, tempTemplate.pixelCount) : null;
-    debugLog(` Duplicate check result:`, duplicateKey ? `Found: ${duplicateKey}` : 'No duplicates found');
-    
-    let template, sortID;
+    let finalSortID = nextSortID;
     if (duplicateKey) {
       // Replace existing template
-      sortID = parseInt(duplicateKey.split(' ')[0]);
+      finalSortID = parseInt(duplicateKey.split(' ')[0]);
       this.overlay.handleDisplayStatus(`Duplicate detected! Replacing existing template "${name}"...`);
       debugLog(`Replacing duplicate template: ${duplicateKey}`);
+      
+      // Update template with existing sortID
+      template.sortID = finalSortID;
       
       // Remove old template from array
       const oldTemplateIndex = this.templatesArray.findIndex(t => `${t.sortID} ${t.authorID}` === duplicateKey);
@@ -220,24 +178,21 @@ export default class TemplateManager {
         delete this.templatesJSON.templates[duplicateKey];
         debugLog(` Removed old duplicate template from JSON: ${duplicateKey}`);
       }
-    } else {
-      // Create new template with next available sortID
-      // Find the highest existing sortID and increment by 1
-      const existingSortIDs = Object.keys(this.templatesJSON.templates).map(key => parseInt(key.split(' ')[0]));
-      sortID = existingSortIDs.length > 0 ? Math.max(...existingSortIDs) + 1 : 0;
     }
 
-    // Creates the final template instance
-    template = new Template({
-      displayName: name,
-      sortID: sortID,
-      authorID: numberToEncoded(this.userID || 0, this.encodingBase),
-      file: blob,
-      coords: coords
-    });
-    const { templateTiles, templateTilesBuffers } = await template.createTemplateTiles(this.tileSize);
-    template.chunked = templateTiles;
-
+    // Convert original image to base64 for thumbnail
+    let thumbnailBase64 = null;
+    try {
+      const reader = new FileReader();
+      thumbnailBase64 = await new Promise((resolve, reject) => {
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    } catch (error) {
+      debugLog('Failed to create thumbnail from original image:', error);
+    }
+    
     // Appends a child into the templates object
     // The child's name is the number of templates already in the list (sort order) plus the encoded player ID
     this.templatesJSON.templates[`${template.sortID} ${template.authorID}`] = {
@@ -250,7 +205,8 @@ export default class TemplateManager {
       "enabled": true,
       "disabledColors": template.getDisabledColors(),
       "enhancedColors": template.getEnhancedColors(),
-      "tiles": templateTilesBuffers
+      "tiles": templateTilesBuffers,
+      "thumbnail": thumbnailBase64 // Store original image as thumbnail
     };
 
     // Update JSON metadata
@@ -272,14 +228,11 @@ export default class TemplateManager {
     const actionText = duplicateKey ? 'replaced' : 'created';
     this.overlay.handleDisplayStatus(`Template #${template.sortID} ${actionText} at ${coords.join(', ')}! Total pixels: ${pixelCountFormatted} | Total templates: ${totalTemplates}`);
 
-
-    await this.#storeTemplates();
-  }
-
-  /** Generates a {@link Template} class instance from the JSON object template
-   */
-  #loadTemplate() {
-
+    // Store templates in background (non-blocking)
+    this.#storeTemplates().catch(error => {
+      console.error('❌ Template storage failed:', error);
+      this.overlay.handleDisplayStatus(`Template created but storage failed: ${error.message}`);
+    });
   }
 
   /** Stores the JSON object of the loaded templates into storage with fallback system.
@@ -468,16 +421,6 @@ export default class TemplateManager {
     }
   }
 
-  /** Disables the template from view
-   */
-  async disableTemplate() {
-
-    // Creates the JSON object if it does not already exist
-    if (!this.templatesJSON) {this.templatesJSON = await this.createJSON();}
-
-
-  }
-
   /** Draws all templates on the specified tile.
    * This method handles the rendering of template overlays on individual tiles.
    * @param {File} tileBlob - The pixels that are placed on a tile
@@ -603,7 +546,7 @@ export default class TemplateManager {
     const canvas = document.createElement('canvas');
     canvas.width = drawSize;
     canvas.height = drawSize;
-    const context = canvas.getContext('2d', { willReadFrequently: true });
+    const context = canvas.getContext('2d');
 
     context.imageSmoothingEnabled = false; // Nearest neighbor
 
@@ -657,8 +600,6 @@ export default class TemplateManager {
         // Fast path: Normal drawing without enhancement or color filtering
         debugLog(`Using fast path (no enhancements)`);
         context.drawImage(template.bitmap, Number(template.pixelCoords[0]) * this.drawMult, Number(template.pixelCoords[1]) * this.drawMult);
-        
-
       } else {
         // Enhanced/Filtered path: Real-time processing for color filtering and/or enhanced mode
         debugLog(`Using enhanced/filtered path`);
@@ -667,7 +608,7 @@ export default class TemplateManager {
         const tempCanvas = document.createElement('canvas');
         tempCanvas.width = template.bitmap.width;
         tempCanvas.height = template.bitmap.height;
-        const tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true });
+        const tempCtx = tempCanvas.getContext('2d');
         tempCtx.imageSmoothingEnabled = false;
         
         // Draw original template to temp canvas
@@ -761,7 +702,7 @@ export default class TemplateManager {
          if (hasEnhancedColors && enhancedPixels && enhancedPixels.size > 0) {
            
            // Enhanced mode with performance limits
-           if (enhancedPixels.size > 60000) {
+           if (enhancedPixels.size > 700000) {
              debugLog(`Skipping enhanced mode: ${enhancedPixels.size} pixels (performance limit)`);
            } else {
              let crosshairCenterCount = 0;
@@ -1412,12 +1353,6 @@ export default class TemplateManager {
     }
   }
 
-  /** Parses the OSU! Place JSON object
-   */
-  #parseOSU() {
-
-  }
-
   /** Sets the `templatesShouldBeDrawn` boolean to a value.
    * @param {boolean} value - The value to set the boolean to
    * @since 0.73.7
@@ -1917,7 +1852,7 @@ export default class TemplateManager {
     const tempCanvas = document.createElement('canvas');
     tempCanvas.width = tileBitmap.width;
     tempCanvas.height = tileBitmap.height;
-    const tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true });
+    const tempCtx = tempCanvas.getContext('2d');
     tempCtx.imageSmoothingEnabled = false;
     tempCtx.drawImage(tileBitmap, 0, 0);
     const templateImageData = tempCtx.getImageData(0, 0, tileBitmap.width, tileBitmap.height);
@@ -2267,7 +2202,7 @@ export default class TemplateManager {
        
        if (radiusValue !== null) {
          // Ensure value is within valid range
-         return Math.max(12, Math.min(512, radiusValue));
+         return Math.max(12, Math.min(32, radiusValue));
        }
      } catch (error) {
        console.warn('Failed to load crosshair radius:', error);
@@ -2569,7 +2504,7 @@ export default class TemplateManager {
          const tempCanvas = document.createElement('canvas');
          tempCanvas.width = tileBitmap.width;
          tempCanvas.height = tileBitmap.height;
-         const tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true });
+         const tempCtx = tempCanvas.getContext('2d');
          tempCtx.imageSmoothingEnabled = false;
          tempCtx.drawImage(tileBitmap, 0, 0);
          const templateImageData = tempCtx.getImageData(0, 0, tileBitmap.width, tileBitmap.height);
@@ -2700,7 +2635,7 @@ export default class TemplateManager {
       const tempCanvas = document.createElement('canvas');
       tempCanvas.width = templateBitmap.width;
       tempCanvas.height = templateBitmap.height;
-      const tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true });
+      const tempCtx = tempCanvas.getContext('2d');
       tempCtx.imageSmoothingEnabled = false;
       tempCtx.drawImage(templateBitmap, 0, 0);
       const templateImageData = tempCtx.getImageData(0, 0, templateBitmap.width, templateBitmap.height);
@@ -2923,7 +2858,6 @@ export default class TemplateManager {
           const dstY = Math.max(0, tileOriginY - startY);
           const drawW = Math.min(tileSize - srcX, canvasW - dstX);
           const drawH = Math.min(tileSize - srcY, canvasH - dstY);
-          
           if (drawW > 0 && drawH > 0) {
             ctx.drawImage(
               bitmap,
@@ -3008,7 +2942,7 @@ export default class TemplateManager {
             const canvas = document.createElement('canvas');
             canvas.width = templateBitmap.width;
             canvas.height = templateBitmap.height;
-            const ctx = canvas.getContext('2d', { willReadFrequently: true });
+            const ctx = canvas.getContext('2d');
             ctx.imageSmoothingEnabled = false;
             ctx.drawImage(templateBitmap, 0, 0);
             const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
@@ -3160,84 +3094,5 @@ export default class TemplateManager {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-  }
-
-  /** Gets the template pixel color at specific tile/pixel coordinates
-   * @param {number} tileX - Tile X coordinate
-   * @param {number} tileY - Tile Y coordinate
-   * @param {number} pixelX - Pixel X coordinate within tile (0-999)
-   * @param {number} pixelY - Pixel Y coordinate within tile (0-999)
-   * @returns {Object|null} Color object {r, g, b} or null if no template pixel at location
-   * @since 1.0.0
-   */
-  getTemplatePixelColorAt(tileX, tileY, pixelX, pixelY) {
-    try {
-      // Format tile coordinates for lookup (zero-padded)
-      const tileCoords = `${String(tileX).padStart(4, '0')},${String(tileY).padStart(4, '0')}`;
-      
-      // Search through enabled templates for a pixel at this location
-      for (const template of this.templatesArray) {
-        const templateKey = `${template.sortID} ${template.authorID}`;
-        
-        // Skip disabled templates
-        if (!this.isTemplateEnabled(templateKey)) {
-          continue;
-        }
-        
-        // Find matching tiles for this tile coordinate
-        const matchingTiles = Object.keys(template.chunked || {}).filter(tile =>
-          tile.startsWith(tileCoords)
-        );
-        
-        for (const tileKey of matchingTiles) {
-          const tileBitmap = template.chunked[tileKey];
-          const coords = tileKey.split(',');
-          const tilePixelX = parseInt(coords[2], 10); // Pixel offset X within tile chunk
-          const tilePixelY = parseInt(coords[3], 10); // Pixel offset Y within tile chunk
-          
-          // Calculate local pixel position within this tile chunk
-          // Account for drawMult (3x) scaling - each logical pixel is 3x3
-          const localX = (pixelX - tilePixelX) * this.drawMult + 1; // +1 to get center pixel
-          const localY = (pixelY - tilePixelY) * this.drawMult + 1; // +1 to get center pixel
-          
-          // Check if pixel is within this tile chunk's bounds
-          if (localX < 0 || localX >= tileBitmap.width || localY < 0 || localY >= tileBitmap.height) {
-            continue;
-          }
-          
-          // Get pixel color from bitmap
-          const tempCanvas = document.createElement('canvas');
-          tempCanvas.width = tileBitmap.width;
-          tempCanvas.height = tileBitmap.height;
-          const tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true });
-          tempCtx.imageSmoothingEnabled = false;
-          tempCtx.drawImage(tileBitmap, 0, 0);
-          const imageData = tempCtx.getImageData(localX, localY, 1, 1);
-          const data = imageData.data;
-          
-          const r = data[0];
-          const g = data[1];
-          const b = data[2];
-          const a = data[3];
-          
-          // Skip transparent pixels (alpha < 64) and #deface (transparent marker)
-          if (a < 64) {
-            continue;
-          }
-          if (r === 222 && g === 250 && b === 206) {
-            continue; // #deface is the transparent marker color
-          }
-          
-          // Found a valid template pixel color
-          debugLog(`[Color Picker] Found template color at (${tileX},${tileY},${pixelX},${pixelY}): rgb(${r},${g},${b})`);
-          return { r, g, b };
-        }
-      }
-      
-      return null; // No template pixel at this location
-    } catch (error) {
-      console.warn('[Color Picker] Error getting template pixel color:', error);
-      return null;
-    }
   }
 }
