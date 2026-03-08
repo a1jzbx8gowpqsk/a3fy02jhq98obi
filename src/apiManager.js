@@ -165,8 +165,8 @@ export default class ApiManager {
           }
           break;
         
-        //case 'tile':
-        case 'tiles':
+        case 'tile':
+        //case 'tiles':
 
           // Runs only if the tile has the template
           let tileCoordsTile = data['endpoint'].split('/');
@@ -176,7 +176,7 @@ export default class ApiManager {
           try {
             const endpointFull = data['endpoint'] || '';
             const parts = endpointFull.split('?')[0].split('/');
-			const idx = parts.lastIndexOf('tiles');
+			const idx = parts.lastIndexOf('tile');
             //const idx = Math.max(parts.lastIndexOf('tile'), parts.lastIndexOf('tiles'));
             if (idx > 0) {
               const base = parts.slice(0, idx + 1).join('/');
