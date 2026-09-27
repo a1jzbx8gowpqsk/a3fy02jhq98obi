@@ -1027,7 +1027,7 @@ export default class TemplateManager {
               
               const colorKey = `${tr},${tg},${tb}`;
               if (!colorBreakdown[colorKey]) {
-                colorBreakdown[colorKey] = { painted: 0, required: 0, wrong: 0, missing: 0, firstWrongPixel: null, firstMissingPixel: null };
+                colorBreakdown[colorKey] = { painted: 0, required: 0, wrong: 0, firstWrongPixel: null };
               }
               colorBreakdown[colorKey].required++;
               requiredCount++;
@@ -1039,12 +1039,6 @@ export default class TemplateManager {
               const pa = tilePixels[tileIdx + 3];
 
               if (pa < 64) {
-                colorBreakdown[colorKey].missing++;
-                if (!colorBreakdown[colorKey].firstMissingPixel) {
-                  const pixelX = Math.floor(gx / this.drawMult);
-                  const pixelY = Math.floor(gy / this.drawMult);
-                  colorBreakdown[colorKey].firstMissingPixel = [pixelX, pixelY];
-                }
               } else if (pr === tr && pg === tg && pb === tb) {
                 paintedCount++;
                 colorBreakdown[colorKey].painted++;
@@ -1061,12 +1055,10 @@ export default class TemplateManager {
           }
         }
         
-        const missingCount = requiredCount - paintedCount - wrongCount;
         this.tileProgress.set(tileCoords, {
           painted: paintedCount,
           required: requiredCount,
           wrong: wrongCount,
-          missing: missingCount,
           colorBreakdown: colorBreakdown // NEW: Per-color detailed stats
         });
         
@@ -2210,7 +2202,7 @@ export default class TemplateManager {
        
        if (radiusValue !== null) {
          // Ensure value is within valid range
-         return Math.max(12, Math.min(512, radiusValue));
+         return Math.max(12, Math.min(32, radiusValue));
        }
      } catch (error) {
        console.warn('Failed to load crosshair radius:', error);
