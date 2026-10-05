@@ -7,8 +7,8 @@
 // @license      MPL-2.0
 // @homepageURL  https://github.com/Seris0/Wplace-SkirkMarble
 // @icon         https://raw.githubusercontent.com/Seris0/Wplace-SkirkMarble/8999f928615ad5d37fba18429bbe43e9c63461ed/dist/assets/Favicon.png
-// @updateURL    https://raw.githubusercontent.com/a1jzbx8gowpqsk/a3fy02jhq98obi/raw/refs/heads/main/dist/SkirkMarble.user.js
-// @downloadURL  https://raw.githubusercontent.com/a1jzbx8gowpqsk/a3fy02jhq98obi/raw/refs/heads/main/dist/SkirkMarble.user.js
+// @updateURL    https://github.com/a1jzbx8gowpqsk/a3fy02jhq98obi/raw/refs/heads/main/dist/SkirkMarble.user.js
+// @downloadURL  https://github.com/a1jzbx8gowpqsk/a3fy02jhq98obi/raw/refs/heads/main/dist/SkirkMarble.user.js
 // @match        *://*.wplace.live/*
 // @grant        GM_getResourceText
 // @grant        GM_addStyle
