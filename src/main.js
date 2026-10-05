@@ -1364,7 +1364,7 @@ function observeOpacityButton() {
         if (mapButtonContainer) return;
 
         // Busca o container pai diretamente pela classe (não depende mais do título do botão)
-        const opacityContainer = document.querySelector('.absolute.bottom-3.left-3.z-30');
+        const opacityContainer = document.querySelector('.bottom-safe-min-3.left-safe-3.absolute.z-30');
         if (!opacityContainer) return;
 
         // Create a new container for the Map button positioned above the opacity button
@@ -9049,7 +9049,7 @@ function getCrosshairRadius() {
     
     if (radiusValue !== null) {
       // Ensure value is within valid range
-      return Math.max(12, Math.min(512, radiusValue));
+      return Math.max(12, Math.min(32, radiusValue));
     }
   } catch (error) {
     console.error('Failed to load crosshair radius setting:', error);
@@ -9065,7 +9065,7 @@ function getCrosshairRadius() {
 function saveCrosshairRadius(radius) {
   try {
     // Ensure value is within valid range
-    const clampedRadius = Math.max(12, Math.min(512, radius));
+    const clampedRadius = Math.max(12, Math.min(32, radius));
     const radiusString = JSON.stringify(clampedRadius);
     
     // Save to TamperMonkey storage
@@ -9514,13 +9514,13 @@ function updateMiniTracker() {
   let progressPercentage;
   if (totalRequired > 0) {
     if (totalPainted === totalRequired) {
-      progressPercentage = '100.00';
+      progressPercentage = 100;
     } else {
       const percentage = (totalPainted / totalRequired) * 100;
-      progressPercentage = Math.min(percentage, 99.99).toFixed(2);
+      progressPercentage = Math.min(Math.round(percentage * 100) / 100, 99.99);
     }
   } else {
-    progressPercentage = '0.00';
+    progressPercentage = 0;
   }
   const remaining = totalRequired - totalPainted;
   
@@ -11679,7 +11679,7 @@ function buildCrosshairSettingsOverlay() {
   const radiusSlider = document.createElement('input');
   radiusSlider.type = 'range';
   radiusSlider.min = '12';
-  radiusSlider.max = '512';
+  radiusSlider.max = '32';
   radiusSlider.step = '1';
   radiusSlider.value = tempRadius;
   radiusSlider.style.cssText = `
